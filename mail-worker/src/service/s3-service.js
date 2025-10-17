@@ -79,12 +79,13 @@ const s3Service = {
 		const { region, endpoint, s3AccessKey, s3SecretKey } = await settingService.query(c);
 		return new S3Client({
 			region: region || 'auto',
-			endpoint: domainUtils.toOssDomain(endpoint),
-			s3ForcePathStyle: true,
+			endpoint: endpoint,
+			forcePathStyle: true,
 			credentials: {
 				accessKeyId: s3AccessKey,
 				secretAccessKey: s3SecretKey,
-			}
+			},
+			tls: true
 		});
 	}
 }

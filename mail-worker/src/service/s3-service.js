@@ -80,7 +80,7 @@ const s3Service = {
 		return new S3Client({
 			region: region || 'auto',
 			endpoint: domainUtils.toOssDomain(endpoint),
-			forcePathStyle: true,
+			s3ForcePathStyle: true,
 			credentials: {
 				accessKeyId: s3AccessKey,
 				secretAccessKey: s3SecretKey,

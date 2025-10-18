@@ -67,7 +67,7 @@ jobs:
           CONFIG_FILE="wrangler-action.toml"
           
           if [ -z "$R2_BUCKET_NAME" ]; then
-            sed -i "18,20d" "$CONFIG_FILE"
+            sed -i "20,22d" "$CONFIG_FILE"
           fi
           
           echo "⚙️ Dynamically updating '$CONFIG_FILE' with binding IDs..."

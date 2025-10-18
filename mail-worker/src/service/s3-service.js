@@ -5,9 +5,17 @@ const s3Service = {
 
 	async putObj(c, key, content, metadata) {
 
-		console.error('[S3] 开始上传对象', { key, metadataKeys: Object.keys(metadata) });
+		console.error('[S3] ========== S3 Service 开始上传对象 ==========');
+		console.error('[S3] 上传参数:', { 
+			key, 
+			contentLength: content?.byteLength || content?.length || 0,
+			metadataKeys: Object.keys(metadata),
+			metadata
+		});
 
+		console.error('[S3] 开始创建 S3 客户端...');
 		const client = await this.client(c);
+		console.error('[S3] S3 客户端创建完成');
 
 		const { bucket } = await settingService.query(c);
 
@@ -33,19 +41,29 @@ const s3Service = {
 			Bucket: obj.Bucket,
 			Key: obj.Key,
 			ContentType: obj.ContentType,
-			ContentDisposition: obj.ContentDisposition
+			ContentDisposition: obj.ContentDisposition,
+			CacheControl: obj.CacheControl,
+			BodySize: obj.Body?.byteLength || obj.Body?.length || 0
 		});
 
 		try {
-			await client.send(new PutObjectCommand(obj));
-			console.error('[S3] 上传成功:', key);
+			console.error('[S3] 开始发送 PutObjectCommand 到 S3...');
+			const result = await client.send(new PutObjectCommand(obj));
+			console.error('[S3] S3 响应:', {
+				statusCode: result.$metadata?.httpStatusCode,
+				requestId: result.$metadata?.requestId,
+				etag: result.ETag
+			});
+			console.error('[S3] ========== 上传成功 ==========', key);
 		} catch (error) {
-			console.error('[S3] 上传失败:', {
+			console.error('[S3] ========== 上传失败 ==========', {
 				key,
-				error: error.message,
-				code: error.Code,
+				errorName: error.name,
+				errorMessage: error.message,
+				errorCode: error.Code,
 				statusCode: error.$metadata?.httpStatusCode,
-				requestId: error.$metadata?.requestId
+				requestId: error.$metadata?.requestId,
+				stack: error.stack
 			});
 			throw error;
 		}

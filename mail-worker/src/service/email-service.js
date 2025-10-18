@@ -130,6 +130,8 @@ const emailService = {
 
 	async send(c, params, userId) {
 
+		console.error('[EMAIL-SERVICE] ========== 开始发送邮件 ==========');
+
 		let {
 			accountId,
 			name,
@@ -143,9 +145,28 @@ const emailService = {
 			attachments
 		} = params;
 
+		console.error('[EMAIL-SERVICE] 发送参数:', {
+			accountId,
+			receiveEmailCount: receiveEmail?.length,
+			hasContent: !!content,
+			contentLength: content?.length,
+			attachmentsCount: attachments?.length
+		});
+
 		const { resendTokens, r2Domain, send } = await settingService.query(c);
 
+		console.error('[EMAIL-SERVICE] 系统设置:', {
+			r2Domain,
+			send,
+			hasResendTokens: !!resendTokens && Object.keys(resendTokens).length > 0
+		});
+
+		console.error('[EMAIL-SERVICE] 开始处理图片内容...');
 		let { attDataList, html } = await attService.toImageUrlHtml(c, content, r2Domain);
+		console.error('[EMAIL-SERVICE] 图片处理完成:', {
+			attDataListLength: attDataList.length,
+			htmlLength: html?.length
+		});
 
 		if (send === settingConst.send.CLOSE) {
 			throw new BizError(t('disabledSend'), 403);
@@ -347,24 +368,44 @@ const emailService = {
 			await userService.incrUserSendCount(c, receiveEmail.length, userId);
 		}
 
+		console.error('[EMAIL-SERVICE] 准备保存邮件记录到数据库:', {
+			emailDataListCount: emailDataList.length,
+			attDataListLength: attDataList.length,
+			attachmentsLength: attachments?.length
+		});
+
 		const emailRowList = await Promise.all(
-			emailDataList.map(async (emailData) => {
+			emailDataList.map(async (emailData, index) => {
+				console.error(`[EMAIL-SERVICE] 保存邮件记录 [${index + 1}/${emailDataList.length}]`);
+				
 				const emailRow = await orm(c).insert(email).values(emailData).returning().get();
+				console.error(`[EMAIL-SERVICE] 邮件记录已保存, emailId: ${emailRow.emailId}`);
 
 				if (attDataList.length > 0) {
+					console.error(`[EMAIL-SERVICE] 开始保存文章图片附件, emailId: ${emailRow.emailId}, 数量: ${attDataList.length}`);
 					await attService.saveArticleAtt(c, attDataList, userId, accountId, emailRow.emailId);
+					console.error(`[EMAIL-SERVICE] 文章图片附件保存完成, emailId: ${emailRow.emailId}`);
+				} else {
+					console.error(`[EMAIL-SERVICE] 没有文章图片附件需要保存, emailId: ${emailRow.emailId}`);
 				}
 
 				if (attachments?.length > 0 && await r2Service.hasOSS(c)) {
+					console.error(`[EMAIL-SERVICE] 开始保存普通附件, emailId: ${emailRow.emailId}, 数量: ${attachments.length}`);
 					await attService.saveSendAtt(c, attachments, userId, accountId, emailRow.emailId);
+					console.error(`[EMAIL-SERVICE] 普通附件保存完成, emailId: ${emailRow.emailId}`);
+				} else {
+					console.error(`[EMAIL-SERVICE] 没有普通附件需要保存, emailId: ${emailRow.emailId}`);
 				}
 
 				const attsList = await attService.selectByEmailIds(c, [emailRow.emailId]);
 				emailRow.attList = attsList;
 
+				console.error(`[EMAIL-SERVICE] 邮件 [${index + 1}/${emailDataList.length}] 处理完成`);
 				return emailRow;
 			})
 		);
+
+		console.error('[EMAIL-SERVICE] ========== 邮件发送流程完成 ==========');
 
 		const dateStr = dayjs().format('YYYY-MM-DD');
 

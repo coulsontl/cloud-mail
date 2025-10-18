@@ -13,7 +13,19 @@ const attService = {
 
 	async addAtt(c, attachments) {
 
-		for (let attachment of attachments) {
+		console.error('[ATT-SERVICE] addAtt 开始上传接收邮件的附件');
+		console.error('[ATT-SERVICE] 附件数量:', attachments.length);
+
+		for (let i = 0; i < attachments.length; i++) {
+			const attachment = attachments[i];
+
+			console.error(`[ATT-SERVICE] 上传附件 [${i + 1}/${attachments.length}]`, {
+				key: attachment.key,
+				filename: attachment.filename,
+				mimeType: attachment.mimeType,
+				size: attachment.size,
+				hasContentId: !!attachment.contentId
+			});
 
 			let metadate = {
 				contentType: attachment.mimeType,
@@ -21,16 +33,31 @@ const attService = {
 
 			if (!attachment.contentId) {
 				metadate.contentDisposition = `attachment;filename=${attachment.filename}`
+				console.error(`[ATT-SERVICE] 附件 [${i + 1}] 类型: 普通附件`);
 			} else {
 				metadate.contentDisposition = `inline;filename=${attachment.filename}`
 				metadate.cacheControl = `max-age=259200`
+				console.error(`[ATT-SERVICE] 附件 [${i + 1}] 类型: 内嵌图片 (CID)`);
 			}
 
-			await r2Service.putObj(c, attachment.key, attachment.content, metadate);
+			console.error(`[ATT-SERVICE] 开始上传附件 [${i + 1}] 到 R2/S3...`);
+			try {
+				await r2Service.putObj(c, attachment.key, attachment.content, metadate);
+				console.error(`[ATT-SERVICE] 附件 [${i + 1}] 上传成功`);
+			} catch (error) {
+				console.error(`[ATT-SERVICE] 附件 [${i + 1}] 上传失败:`, {
+					key: attachment.key,
+					error: error.message,
+					stack: error.stack
+				});
+				throw error;
+			}
 
 		}
 
+		console.error('[ATT-SERVICE] 所有附件上传完成，开始插入数据库...');
 		await orm(c).insert(att).values(attachments).run();
+		console.error('[ATT-SERVICE] 附件数据库记录插入完成');
 	},
 
 	list(c, params, userId) {
@@ -48,19 +75,44 @@ const attService = {
 
 	async toImageUrlHtml(c, content, r2Domain) {
 
+		console.error('[ATT-SERVICE] toImageUrlHtml 开始处理内容');
+		console.error('[ATT-SERVICE] 参数:', {
+			hasContent: !!content,
+			contentLength: content?.length,
+			r2Domain
+		});
+
 		const { document } = parseHTML(content);
 
 		const images = Array.from(document.querySelectorAll('img'));
+		console.error('[ATT-SERVICE] 找到图片数量:', images.length);
 
 		const attDataList = [];
 
-		for (const img of images) {
-
+		for (let i = 0; i < images.length; i++) {
+			const img = images[i];
 			const src = img.getAttribute('src');
+			
+			console.error(`[ATT-SERVICE] 处理图片 [${i + 1}/${images.length}]`, {
+				srcPrefix: src?.substring(0, 50),
+				isBase64: src?.startsWith('data:image')
+			});
+
 			if (src && src.startsWith('data:image')) {
+				console.error(`[ATT-SERVICE] 图片 [${i + 1}] 是 base64 格式，开始转换...`);
+				
 				const file = fileUtils.base64ToFile(src);
+				console.error(`[ATT-SERVICE] 图片 [${i + 1}] 文件信息:`, {
+					name: file.name,
+					type: file.type,
+					size: file.size
+				});
+
 				const buff = await file.arrayBuffer();
 				const key = constant.ATTACHMENT_PREFIX + await fileUtils.getBuffHash(buff) + fileUtils.getExtFileName(file.name);
+				
+				console.error(`[ATT-SERVICE] 图片 [${i + 1}] 生成 key:`, key);
+				
 				img.setAttribute('src', domainUtils.toOssDomain(r2Domain) + '/' + key);
 
 				const attData = {};
@@ -71,6 +123,7 @@ const attService = {
 				attData.buff = buff;
 
 				attDataList.push(attData);
+				console.error(`[ATT-SERVICE] 图片 [${i + 1}] 已添加到 attDataList`);
 			}
 
 			const hasInlineWidth = img.hasAttribute('width');
@@ -82,6 +135,12 @@ const attService = {
 				img.setAttribute('style', newStyle);
 			}
 		}
+
+		console.error('[ATT-SERVICE] toImageUrlHtml 处理完成:', {
+			attDataListLength: attDataList.length,
+			htmlLength: document.toString().length
+		});
+
 		return { attDataList, html: document.toString() };
 	},
 
@@ -114,19 +173,51 @@ const attService = {
 
 	async saveArticleAtt(c, attDataList, userId, accountId, emailId) {
 
-		for (let attData of attDataList) {
+		console.error('[ATT-SERVICE] saveArticleAtt 开始保存文章附件');
+		console.error('[ATT-SERVICE] 参数:', {
+			attDataListLength: attDataList.length,
+			userId,
+			accountId,
+			emailId
+		});
+
+		for (let i = 0; i < attDataList.length; i++) {
+			const attData = attDataList[i];
+			
+			console.error(`[ATT-SERVICE] 保存附件 [${i + 1}/${attDataList.length}]`, {
+				key: attData.key,
+				filename: attData.filename,
+				mimeType: attData.mimeType,
+				size: attData.size
+			});
+
 			attData.userId = userId;
 			attData.emailId = emailId;
 			attData.accountId = accountId;
 			attData.type = attConst.type.EMBED;
-			await r2Service.putObj(c, attData.key, attData.buff, {
-				contentType: attData.mimeType,
-				cacheControl: `max-age=259200`,
-				contentDisposition: `inline;filename=${attData.filename}`
-			});
+
+			console.error(`[ATT-SERVICE] 开始上传到 R2/S3, key: ${attData.key}`);
+			
+			try {
+				await r2Service.putObj(c, attData.key, attData.buff, {
+					contentType: attData.mimeType,
+					cacheControl: `max-age=259200`,
+					contentDisposition: `inline;filename=${attData.filename}`
+				});
+				console.error(`[ATT-SERVICE] 附件 [${i + 1}] 上传成功: ${attData.key}`);
+			} catch (error) {
+				console.error(`[ATT-SERVICE] 附件 [${i + 1}] 上传失败:`, {
+					key: attData.key,
+					error: error.message,
+					stack: error.stack
+				});
+				throw error;
+			}
 		}
 
+		console.error('[ATT-SERVICE] 所有附件上传完成，开始插入数据库记录');
 		await orm(c).insert(att).values(attDataList).run();
+		console.error('[ATT-SERVICE] 数据库记录插入完成');
 
 	},
 

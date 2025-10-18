@@ -17,10 +17,14 @@ const r2Service = {
 
 	async putObj(c, key, content, metadata) {
 
-		console.error('[R2] 开始上传对象', { 
+		console.error('[R2] ========== 开始上传对象 ==========');
+		console.error('[R2] 上传参数:', { 
 			key, 
 			useNativeR2: !!c.env.r2,
-			metadataKeys: Object.keys(metadata) 
+			hasR2Env: !!c.env.r2,
+			contentLength: content?.byteLength || content?.length || 0,
+			metadataKeys: Object.keys(metadata),
+			metadata
 		});
 
 		if (c.env.r2) {
@@ -28,6 +32,7 @@ const r2Service = {
 			console.error('[R2] 使用 Cloudflare 原生 R2 API');
 
 			try {
+				console.error('[R2] 调用 c.env.r2.put(), key:', key);
 				await c.env.r2.put(key, content, {
 					httpMetadata: { ...metadata }
 				});
@@ -43,10 +48,24 @@ const r2Service = {
 
 		} else {
 
-			console.error('[R2] 使用 S3 兼容 API (MinIO)');
-			await s3Service.putObj(c, key, content, metadata);
+			console.error('[R2] 使用 S3 兼容 API (MinIO/其他S3)');
+			console.error('[R2] 准备调用 s3Service.putObj()');
+			
+			try {
+				await s3Service.putObj(c, key, content, metadata);
+				console.error('[R2] S3 上传成功:', key);
+			} catch (error) {
+				console.error('[R2] S3 上传失败:', {
+					key,
+					error: error.message,
+					stack: error.stack
+				});
+				throw error;
+			}
 
 		}
+
+		console.error('[R2] ========== 对象上传完成 ==========');
 
 	},
 

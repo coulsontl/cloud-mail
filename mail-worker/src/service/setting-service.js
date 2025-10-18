@@ -23,11 +23,43 @@ const settingService = {
 
 	async query(c) {
 
+		console.error('[SETTING-SERVICE] query 获取系统配置...');
+
 		if (c.get?.('setting')) {
-			return c.get('setting')
+			console.error('[SETTING-SERVICE] 从上下文缓存中获取配置');
+			const cachedSetting = c.get('setting');
+			console.error('[SETTING-SERVICE] 缓存配置 S3 相关字段:', {
+				bucket: cachedSetting.bucket || '(未配置)',
+				region: cachedSetting.region || '(未配置)',
+				endpoint: cachedSetting.endpoint || '(未配置)',
+				s3AccessKey: cachedSetting.s3AccessKey ? `${cachedSetting.s3AccessKey.substring(0, 10)}...` : '(未配置)',
+				s3SecretKey: cachedSetting.s3SecretKey ? '(已配置)' : '(未配置)',
+				r2Domain: cachedSetting.r2Domain || '(未配置)'
+			});
+			return cachedSetting;
 		}
 
+		console.error('[SETTING-SERVICE] 从 KV 存储读取配置, key:', KvConst.SETTING);
 		const setting = await c.env.kv.get(KvConst.SETTING, { type: 'json' });
+
+		if (!setting) {
+			console.error('[SETTING-SERVICE] ⚠️ KV 中没有找到配置！');
+		} else {
+			console.error('[SETTING-SERVICE] KV 配置读取成功');
+			console.error('[SETTING-SERVICE] S3/R2 相关配置:', {
+				bucket: setting.bucket || '(未配置)',
+				region: setting.region || '(未配置)',
+				endpoint: setting.endpoint || '(未配置)',
+				s3AccessKey: setting.s3AccessKey ? `${setting.s3AccessKey.substring(0, 10)}...` : '(未配置)',
+				s3SecretKey: setting.s3SecretKey ? `(已配置，长度: ${setting.s3SecretKey.length})` : '(未配置)',
+				r2Domain: setting.r2Domain || '(未配置)',
+				hasBucket: !!setting.bucket,
+				hasRegion: !!setting.region,
+				hasEndpoint: !!setting.endpoint,
+				hasS3AccessKey: !!setting.s3AccessKey,
+				hasS3SecretKey: !!setting.s3SecretKey
+			});
+		}
 
 		let domainList = c.env.domain;
 
@@ -46,6 +78,8 @@ const settingService = {
 		domainList = domainList.map(item => '@' + item);
 		setting.domainList = domainList;
 		c.set?.('setting', setting);
+		
+		console.error('[SETTING-SERVICE] 配置处理完成，已设置到上下文');
 		return setting;
 	},
 

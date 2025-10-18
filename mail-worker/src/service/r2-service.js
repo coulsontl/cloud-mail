@@ -5,14 +5,47 @@ const r2Service = {
 
 	async hasOSS(c) {
 
+		console.error('[R2] hasOSS 检查 OSS 配置...');
+		
+		console.error('[R2] 检查 Cloudflare R2 原生绑定...');
+		console.error('[R2] c.env.r2 存在:', !!c.env.r2);
+		
 		if (c.env.r2) {
+			console.error('[R2] 使用 Cloudflare 原生 R2，返回 true');
 			return true;
 		}
 
+		console.error('[R2] 未使用原生 R2，检查 S3 兼容配置...');
 		const setting = await settingService.query(c);
 		const { bucket, region, endpoint, s3AccessKey, s3SecretKey } = setting;
 
-		return !!(bucket && region && endpoint && s3AccessKey && s3SecretKey);
+		console.error('[R2] S3 兼容配置详情:', {
+			bucket: bucket || '(未配置)',
+			region: region || '(未配置)',
+			endpoint: endpoint || '(未配置)',
+			s3AccessKey: s3AccessKey ? `${s3AccessKey.substring(0, 10)}...` : '(未配置)',
+			s3SecretKey: s3SecretKey ? '(已配置，长度: ' + s3SecretKey.length + ')' : '(未配置)',
+			hasBucket: !!bucket,
+			hasRegion: !!region,
+			hasEndpoint: !!endpoint,
+			hasAccessKey: !!s3AccessKey,
+			hasSecretKey: !!s3SecretKey
+		});
+
+		const result = !!(bucket && region && endpoint && s3AccessKey && s3SecretKey);
+		console.error('[R2] OSS 配置检查结果:', result);
+		
+		if (!result) {
+			console.error('[R2] OSS 配置不完整，缺失的项:', {
+				缺失bucket: !bucket,
+				缺失region: !region,
+				缺失endpoint: !endpoint,
+				缺失s3AccessKey: !s3AccessKey,
+				缺失s3SecretKey: !s3SecretKey
+			});
+		}
+
+		return result;
 	},
 
 	async putObj(c, key, content, metadata) {

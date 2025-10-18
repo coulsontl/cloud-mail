@@ -5,13 +5,13 @@ const s3Service = {
 
 	async putObj(c, key, content, metadata) {
 
-		console.log('[S3] 开始上传对象', { key, metadataKeys: Object.keys(metadata) });
+		console.error('[S3] 开始上传对象', { key, metadataKeys: Object.keys(metadata) });
 
 		const client = await this.client(c);
 
 		const { bucket } = await settingService.query(c);
 
-		console.log('[S3] 使用桶名称:', bucket);
+		console.error('[S3] 使用桶名称:', bucket);
 
 		let obj = { Bucket: bucket, Key: key, Body: content,
 			CacheControl: metadata.cacheControl
@@ -29,7 +29,7 @@ const s3Service = {
 			obj.ContentType = metadata.contentType
 		}
 
-		console.log('[S3] PutObjectCommand 参数:', {
+		console.error('[S3] PutObjectCommand 参数:', {
 			Bucket: obj.Bucket,
 			Key: obj.Key,
 			ContentType: obj.ContentType,
@@ -38,7 +38,7 @@ const s3Service = {
 
 		try {
 			await client.send(new PutObjectCommand(obj));
-			console.log('[S3] 上传成功:', key);
+			console.error('[S3] 上传成功:', key);
 		} catch (error) {
 			console.error('[S3] 上传失败:', {
 				key,
@@ -61,12 +61,12 @@ const s3Service = {
 			return;
 		}
 
-		console.log('[S3] 开始删除对象', { count: keys.length, keys: keys.slice(0, 5) });
+		console.error('[S3] 开始删除对象', { count: keys.length, keys: keys.slice(0, 5) });
 
 		const client = await this.client(c);
 		const { bucket } = await settingService.query(c);
 
-		console.log('[S3] 删除操作使用桶名称:', bucket);
+		console.error('[S3] 删除操作使用桶名称:', bucket);
 
 
 		client.middlewareStack.add(
@@ -100,7 +100,7 @@ const s3Service = {
 					}
 				})
 			);
-			console.log('[S3] 删除成功:', keys.length, '个对象');
+			console.error('[S3] 删除成功:', keys.length, '个对象');
 		} catch (error) {
 			console.error('[S3] 删除失败:', {
 				count: keys.length,
@@ -116,7 +116,7 @@ const s3Service = {
 	async client(c) {
 		const { region, endpoint, s3AccessKey, s3SecretKey } = await settingService.query(c);
 		
-		console.log('[S3] 创建 S3 客户端配置:', {
+		console.error('[S3] 创建 S3 客户端配置:', {
 			region: region || 'us-east-1',
 			endpoint: endpoint,
 			forcePathStyle: true,
@@ -138,7 +138,7 @@ const s3Service = {
 		// 添加请求拦截器来记录实际发送的请求
 		client.middlewareStack.add(
 			(next) => async (args) => {
-				console.log('[S3] 实际请求信息:', {
+				console.error('[S3] 实际请求信息:', {
 					hostname: args.request.hostname,
 					path: args.request.path,
 					method: args.request.method,
@@ -151,7 +151,7 @@ const s3Service = {
 				
 				const result = await next(args);
 				
-				console.log('[S3] 请求响应状态:', result.response?.statusCode);
+				console.error('[S3] 请求响应状态:', result.response?.statusCode);
 				
 				return result;
 			},

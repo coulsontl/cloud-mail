@@ -1,10 +1,11 @@
 name = "cloud-mail"
 main = "src/index.js"
 compatibility_date = "2025-06-04"
+logpush = false
+# 禁用自动打包优化，保留所有 console 日志
+no_bundle = true
 
-# 禁用代码压缩以保留 console 日志
-minify = false
-
+# 保留所有日志级别（verbose, debug, info, log, warn, error）
 [observability]
 enabled = true
 

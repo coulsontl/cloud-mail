@@ -2,6 +2,8 @@ name = "cloud-mail"
 main = "src/index.js"
 compatibility_date = "2025-06-04"
 
+# 禁用代码压缩和优化，保留源代码可读性
+minify = false
 
 [observability]
 enabled = true

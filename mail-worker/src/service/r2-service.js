@@ -17,7 +17,7 @@ const r2Service = {
 
 	async putObj(c, key, content, metadata) {
 
-		console.log('[R2] 开始上传对象', { 
+		console.error('[R2] 开始上传对象', { 
 			key, 
 			useNativeR2: !!c.env.r2,
 			metadataKeys: Object.keys(metadata) 
@@ -25,13 +25,13 @@ const r2Service = {
 
 		if (c.env.r2) {
 
-			console.log('[R2] 使用 Cloudflare 原生 R2 API');
+			console.error('[R2] 使用 Cloudflare 原生 R2 API');
 
 			try {
 				await c.env.r2.put(key, content, {
 					httpMetadata: { ...metadata }
 				});
-				console.log('[R2] 原生 R2 上传成功:', key);
+				console.error('[R2] 原生 R2 上传成功:', key);
 			} catch (error) {
 				console.error('[R2] 原生 R2 上传失败:', {
 					key,
@@ -43,7 +43,7 @@ const r2Service = {
 
 		} else {
 
-			console.log('[R2] 使用 S3 兼容 API (MinIO)');
+			console.error('[R2] 使用 S3 兼容 API (MinIO)');
 			await s3Service.putObj(c, key, content, metadata);
 
 		}
@@ -57,18 +57,18 @@ const r2Service = {
 	async delete(c, key) {
 
 		const keys = typeof key === 'string' ? [key] : key;
-		console.log('[R2] 开始删除对象', { 
+		console.error('[R2] 开始删除对象', { 
 			count: keys.length, 
 			useNativeR2: !!c.env.r2 
 		});
 
 		if (c.env.r2) {
 
-			console.log('[R2] 使用 Cloudflare 原生 R2 API 删除');
+			console.error('[R2] 使用 Cloudflare 原生 R2 API 删除');
 
 			try {
 				await c.env.r2.delete(key);
-				console.log('[R2] 原生 R2 删除成功');
+				console.error('[R2] 原生 R2 删除成功');
 			} catch (error) {
 				console.error('[R2] 原生 R2 删除失败:', error.message);
 				throw error;
@@ -76,7 +76,7 @@ const r2Service = {
 
 		} else {
 
-			console.log('[R2] 使用 S3 兼容 API (MinIO) 删除');
+			console.error('[R2] 使用 S3 兼容 API (MinIO) 删除');
 			await s3Service.deleteObj(c, key);
 
 		}

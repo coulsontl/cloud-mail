@@ -173,10 +173,36 @@ export async function email(message, env, ctx) {
 
 		}
 
-		//转发到TG
-		if (tgBotStatus === settingConst.tgBotStatus.OPEN && tgChatId) {
-			await telegramService.sendEmailToBot({ env }, emailRow)
+	//转发到TG
+	if (tgBotStatus === settingConst.tgBotStatus.OPEN && tgChatId) {
+		console.log('[邮件接收-TG转发] 准备转发邮件到Telegram', {
+			tgBotStatus,
+			tgChatId,
+			emailId: emailRow.emailId,
+			subject: emailRow.subject,
+			hasContent: !!emailRow.content,
+			hasText: !!emailRow.text
+		});
+		try {
+			await telegramService.sendEmailToBot({ env }, emailRow);
+			console.log('[邮件接收-TG转发] Telegram转发完成', { 
+				emailId: emailRow.emailId 
+			});
+		} catch (e) {
+			console.error('[邮件接收-TG转发] Telegram转发失败', {
+				emailId: emailRow.emailId,
+				errorMessage: e.message,
+				errorStack: e.stack,
+				errorName: e.name
+			});
 		}
+	} else {
+		console.log('[邮件接收-TG转发] 跳过TG转发', {
+			tgBotStatus,
+			hasTgChatId: !!tgChatId,
+			reason: tgBotStatus !== settingConst.tgBotStatus.OPEN ? 'TG Bot未开启' : '未配置Chat ID'
+		});
+	}
 
 		//转发到其他邮箱
 		if (forwardStatus === settingConst.forwardStatus.OPEN && forwardEmail) {

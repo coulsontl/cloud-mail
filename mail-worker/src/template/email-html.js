@@ -3,10 +3,41 @@ import domainUtils from '../utils/domain-uitls';
 
 export default function emailHtmlTemplate(html, domain) {
 
-	const { document } = parseHTML(html);
-	document.querySelectorAll('script').forEach(script => script.remove());
-	html = document.toString();
-	html = html.replace(/{{domain}}/g, domainUtils.toOssDomain(domain) + '/');
+	try {
+		console.log('[邮件HTML模板] 开始处理HTML模板', {
+			htmlLength: html?.length || 0,
+			domain,
+			hasHtml: !!html
+		});
+
+		const { document } = parseHTML(html);
+		const scriptCount = document.querySelectorAll('script').length;
+		document.querySelectorAll('script').forEach(script => script.remove());
+		
+		console.log('[邮件HTML模板] 移除Script标签', { scriptCount });
+
+		html = document.toString();
+		const domainReplacements = (html.match(/{{domain}}/g) || []).length;
+		html = html.replace(/{{domain}}/g, domainUtils.toOssDomain(domain) + '/');
+
+		console.log('[邮件HTML模板] 域名替换完成', { 
+			domainReplacements,
+			ossDomain: domainUtils.toOssDomain(domain)
+		});
+
+		console.log('[邮件HTML模板] HTML模板处理完成', {
+			finalHtmlLength: html.length
+		});
+
+	} catch (error) {
+		console.error('[邮件HTML模板] HTML模板处理失败', {
+			errorMessage: error.message,
+			errorStack: error.stack,
+			htmlLength: html?.length || 0,
+			domain
+		});
+		// 即使出错也继续返回，只是可能没有正确处理
+	}
 
 	return `<!DOCTYPE html>
 <html lang='en' >

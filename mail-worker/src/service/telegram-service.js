@@ -130,7 +130,8 @@ const telegramService = {
 			const msgText = emailMsgTemplate(email, tgMsgTo, tgMsgFrom, tgMsgText);
 			console.log('[TG-发送消息] 消息文本生成完成', { 
 				textLength: msgText?.length || 0,
-				textPreview: msgText?.substring(0, 100) + '...'
+				textPreview: msgText?.substring(0, 200) + '...',
+				fullText: msgText // 完整文本用于调试
 			});
 
 			await Promise.all(tgChatIds.map(async (chatId, index) => {
@@ -185,12 +186,25 @@ const telegramService = {
 
 					if (!res.ok) {
 						const errorText = await res.text();
+						let errorJson = null;
+						try {
+							errorJson = JSON.parse(errorText);
+						} catch (e) {
+							// 无法解析为JSON，保持原文本
+						}
+						
 						console.error(`[TG-发送消息] TG API返回错误`, {
 							chatId: chatId.trim(),
 							status: res.status,
 							statusText: res.statusText,
 							errorBody: errorText,
-							emailId: email.emailId
+							errorJson: errorJson,
+							errorDescription: errorJson?.description,
+							errorCode: errorJson?.error_code,
+							emailId: email.emailId,
+							// 帮助调试：输出发送的消息文本
+							sentMessagePreview: msgText.substring(0, 300),
+							sentMessageLength: msgText.length
 						});
 					} else {
 						const responseData = await res.json();
